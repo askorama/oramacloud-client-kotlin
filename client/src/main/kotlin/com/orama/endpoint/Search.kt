@@ -3,49 +3,53 @@ package com.orama.endpoint
 import com.orama.model.search.SearchResponse
 import com.orama.model.search.SearchParams
 import com.orama.client.OramaClient
-import okhttp3.*
-import java.io.IOException
-import kotlinx.serialization.json.*
+import com.orama.listeners.SearchEventListener
+import com.orama.utils.UUIDUtils
+import io.ktor.client.*
+import io.ktor.client.request.*
+import io.ktor.client.request.forms.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import kotlinx.serialization.json.Json
 import java.util.*
 
-sealed class Search() {
+sealed class Search {
     companion object {
-        val jsonDeserializer = Json {
+        private val jsonDeserializer = Json {
             ignoreUnknownKeys = true
         }
 
-        fun get(
+        suspend fun get(
             oramaClient: OramaClient,
-            httpClient: OkHttpClient,
+            httpClient: HttpClient,
             searchParams: SearchParams,
-            callback: (response: SearchResponse?, error: Exception?) -> Unit
+            events: SearchEventListener?
         ) {
-            val requestBody = FormBody.Builder()
-                .addEncoded("q", searchParams.toJson())
-                .addEncoded("version", "1.3.2")
-                .addEncoded("id", UUID.randomUUID().toString().replace("-", " "))
-                .build()
+            println("@@@ GET @@@")
+            try {
+                val response: HttpResponse = httpClient.submitForm(
+                    url = "${oramaClient.endpoint}/search",
+                    formParameters = Parameters.build {
+                        append("q", searchParams.toJson())
+                        append("version", "1.3.2")
+                        append("id", UUIDUtils.generate())
+                    },
+                    encodeInQuery = false
+                ) {
+                    header("Content-Type", "application/x-www-form-urlencoded")
+                    parameter("api-key", oramaClient.apiKey)
+                }
 
-            val request = Request.Builder()
-                .url("${oramaClient.endpoint}/search?api-key=${oramaClient.apiKey}")
-                .addHeader("Content-Type", "application/x-www-form-urlencoded")
-                .post(requestBody)
-                .build()
-
-                httpClient.newCall(request).enqueue(object : Callback {
-                    override fun onFailure(call: Call, e: IOException) {
-                        callback(null, e)
-                    }
-
-                    override fun onResponse(call: Call, response: Response) {
-                        val responseBody = response.body?.string()
-                        if (response.isSuccessful && responseBody != null) {
-                            callback(jsonDeserializer.decodeFromString<SearchResponse>(responseBody), null)
-                        } else {
-                            callback(null, IOException(response.message))
-                        }
-                    }
-                })
+                val responseBody = response.bodyAsText()
+                if (response.status.isSuccess()) {
+                    val searchResponse = jsonDeserializer.decodeFromString<SearchResponse>(responseBody)
+                    events?.onComplete(searchResponse)
+                } else {
+                    events?.onError(response.status.description)
+                }
+            } catch (e: Exception) {
+                events?.onError(e.message ?: "unknown error")
+            }
         }
     }
 }

@@ -3,15 +3,15 @@
  */
 package com.orama.client
 
-import com.orama.model.search.SearchResponse
-import com.orama.model.search.SearchParams
 import com.orama.endpoint.Search
-import okhttp3.OkHttpClient
+import com.orama.listeners.SearchEventListener
+import com.orama.model.search.SearchParams
+import io.ktor.client.*
 
 class OramaClient(var apiKey: String, var endpoint: String) {
-    private val httpClient = OkHttpClient()
+    private val httpClient = HttpClient()
 
-    fun search(searchParams: SearchParams, callback: (response: SearchResponse?, error: Exception?) -> Unit) {
-        return Search.get(this@OramaClient, httpClient, searchParams, callback)
+    suspend fun search(searchParams: SearchParams, events: SearchEventListener? = null) {
+        return Search.get(this@OramaClient, httpClient, searchParams, events)
     }
 }
