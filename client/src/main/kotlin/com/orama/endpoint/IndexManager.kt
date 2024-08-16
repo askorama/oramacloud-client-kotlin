@@ -20,7 +20,7 @@ data class DeleteRequest (
     val delete: List<String>
 )
 
-public enum class IndexMethod(public val value: String) {
+enum class IndexMethod(val value: String) {
     SNAPSHOT("snapshot"),
     DEPLOY("deploy"),
     NOTIFY("notify"),
