@@ -17,27 +17,72 @@ dependencies {
 
 ## Usage
 
+Performing full-text, vector, or hybrid search:
+
 First, you need to do is to instantiate the client passing your `endpoint` and `apiKey`.
 After that, use the `SearchParams` to prepare you query.
 Now, just call the `client.search` method with the parameters and a proper callback handler.
 
 ```kotlin
 val client = OramaClient(
-    endpoint = "https://cloud.orama.run/v1/indexes/orama-docs-bzo330",
-    apiKey = "NKiqTJnwnKsQCdxN7RyOBJgeoW5hJ594"
+    endpoint = "<ORAMA CLOUD URL>",
+    apiKey = "<ORAMA CLOUD API KEY>"
 )
 
-val searchParams = ClientSearchParams.builder(
-    term = "integrate Orama",
-    mode = ClientSearchParams.Mode.FULLTEXT
-)
-    .limit(10)
-    .offset(0)
-    .build()
+launch {
+    client.search(
+        SearchParams.builder(
+            term = "install",
+            mode = Mode.FULLTEXT // Modes: FULLTEXT, VECTOR and HYBRID
+        ).build(),
+        object : SearchEventListener {
+            override fun onComplete(results: SearchResponse) {
+                // Do something with results 
+            }
 
-client.search(searchParams) { response, error ->
-    if (!error) {
-        // ... your code
-    }
+            override fun onError(error: String) {
+                // Handle error
+            }
+        }
+    )
 }
 ```
+
+Performing an answer session:
+
+```kotlin
+val client = OramaClient(
+    endpoint = "<ORAMA CLOUD URL>",
+    apiKey = "<ORAMA CLOUD API KEY>"
+)
+
+val answerParams = AnswerParams(
+    userContext = null,
+    oramaClient = client,
+    inferenceType = InferenceType.DOCUMENTATION,
+    initialMessages = mutableListOf<Message>()
+)
+
+val answerSession = AnswerSession(
+    answerParams = answerParams,
+    events = object : AnswerEventListener {
+        override fun onStateChange(interactions: MutableList<Interaction>) {
+            // Process list of interaction post-response
+        }
+
+        override fun onMessageChange(data: String) {
+            // Process the incoming streaming 
+        }
+    }
+)
+
+runBlocking {
+    answerSession.ask(AskParams(
+        query = "What's the best movie to watch with the family?"
+    ))
+}
+```
+
+## License
+
+[Apache 2.0](/LICENSE.md)
