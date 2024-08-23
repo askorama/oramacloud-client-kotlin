@@ -5,6 +5,8 @@ build
 local.properties
 reports
 build
+.kotlin
+.bashrc
 
 # IntelliJ IDEA
 .idea

@@ -1,6 +1,9 @@
 Orama Cloud Kotlin Client
 ---
 
+This repository contains Orama's Cloud Multiplatform Kotlin Client.
+Developers can use this library to interact with Orama using Kotlin in multiple plataforms,
+
 ## Installing using Maven
 
 To install, make sure to enable Maven repository and include the dependency in your build file `gradle.build.kts`.
@@ -11,7 +14,7 @@ repositories {
 }
 
 dependencies {
-   implementation "com.orama:oramasearch-client-kotlin:$kotlin_client_version"
+   implementation "com.orama:oramasearch-client-kotlin:$OramaClientVersion"
 }
 ```
 
@@ -83,6 +86,12 @@ runBlocking {
 }
 ```
 
+## Todo
+
+- [ ] Include Tests & commonTest subset
+- [ ] Search results: replace generic maps for proper serializable types
+
 ## License
 
 [Apache 2.0](/LICENSE.md)
+
