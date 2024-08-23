@@ -24,13 +24,12 @@ sealed class Search {
             searchParams: SearchParams,
             events: SearchEventListener?
         ) {
-            println("@@@ GET @@@")
             try {
                 val response: HttpResponse = httpClient.submitForm(
                     url = "${oramaClient.endpoint}/search",
                     formParameters = Parameters.build {
                         append("q", searchParams.toJson())
-                        append("version", "1.3.2")
+                        append("version", "kotlin-1.0.0") // TODO: replace for buildconfig
                         append("id", UUIDUtils.generate())
                     },
                     encodeInQuery = false
