@@ -6,8 +6,6 @@ val VERSION_NAME: String by project
 version = VERSION_NAME
 println("Project version is set to: ${version}")
 
-
-
 plugins {
     kotlin("multiplatform") version "1.9.0"
     kotlin("plugin.serialization") version "2.0.0" apply false
@@ -17,6 +15,8 @@ plugins {
 }
 
 kotlin {
+    applyDefaultHierarchyTemplate()
+
     jvm()
 
     if (HostManager.hostIsMac) {
@@ -38,6 +38,15 @@ kotlin {
                 implementation("com.benasher44:uuid:0.8.4")
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0-RC")
+            }
+        }
+
+        val commonTest by getting {
+            dependencies {
+                implementation("io.ktor:ktor-client-mock:3.0.0-beta-2")
+                implementation("org.jetbrains.kotlin:kotlin-test")
+                implementation("org.jetbrains.kotlin:kotlin-test-common")
+                implementation("org.jetbrains.kotlin:kotlin-test-annotations-common")
             }
         }
     }
