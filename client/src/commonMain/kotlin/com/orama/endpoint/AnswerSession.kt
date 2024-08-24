@@ -93,7 +93,7 @@ class AnswerSession<T>(
         )
     }
 
-    suspend fun ask(params: AskParams<T>)  {
+    suspend fun ask(params: AskParams)  {
         try {
             events?.onMessageLoading(true)
 
