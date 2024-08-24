@@ -1,6 +1,6 @@
 package com.orama.model.answer
 
-data class AskParams<T> (
+data class AskParams (
     val query: String,
     val userData: String? = null,
     val related: String? = null,
