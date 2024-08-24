@@ -10,7 +10,6 @@ import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import kotlinx.io.IOException
 import kotlinx.serialization.json.Json
 
 sealed class Search {
