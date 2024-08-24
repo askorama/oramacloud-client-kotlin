@@ -3,13 +3,14 @@ package com.orama.endpoint
 import com.orama.model.search.SearchResponse
 import com.orama.model.search.SearchParams
 import com.orama.client.OramaClient
-import com.orama.listeners.SearchEventListener
+import com.orama.exception.OramaException
 import com.orama.utils.UUIDUtils
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import kotlinx.io.IOException
 import kotlinx.serialization.json.Json
 
 sealed class Search {
@@ -21,9 +22,8 @@ sealed class Search {
         suspend fun get(
             oramaClient: OramaClient,
             httpClient: HttpClient,
-            searchParams: SearchParams,
-            events: SearchEventListener?
-        ) {
+            searchParams: SearchParams
+        ): SearchResponse {
             try {
                 val response: HttpResponse = httpClient.submitForm(
                     url = "${oramaClient.endpoint}/search",
@@ -40,13 +40,14 @@ sealed class Search {
 
                 val responseBody = response.bodyAsText()
                 if (response.status.isSuccess()) {
-                    val searchResponse = jsonDeserializer.decodeFromString<SearchResponse>(responseBody)
-                    events?.onComplete(searchResponse)
+                    return jsonDeserializer.decodeFromString<SearchResponse>(responseBody)
                 } else {
-                    events?.onError(response.status.description)
+                    throw OramaException(
+                        "Error while parsing response: ${response.status.description}"
+                    )
                 }
-            } catch (e: Exception) {
-                events?.onError(e.message ?: "unknown error")
+            } catch (exception: Exception) {
+                throw OramaException(exception.message, exception)
             }
         }
     }

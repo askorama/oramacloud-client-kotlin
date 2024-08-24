@@ -4,14 +4,14 @@
 package com.orama.client
 
 import com.orama.endpoint.Search
-import com.orama.listeners.SearchEventListener
 import com.orama.model.search.SearchParams
+import com.orama.model.search.SearchResponse
 import io.ktor.client.*
 
 class OramaClient(var apiKey: String, var endpoint: String) {
     private val httpClient = HttpClient()
 
-    suspend fun search(searchParams: SearchParams, events: SearchEventListener? = null) {
-        return Search.get(this@OramaClient, httpClient, searchParams, events)
+    suspend fun search(searchParams: SearchParams): SearchResponse {
+        return Search.get(this@OramaClient, httpClient, searchParams)
     }
 }
