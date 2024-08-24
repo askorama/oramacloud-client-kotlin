@@ -4,8 +4,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
 @Serializable
-data class Hit(
+data class Hit<T>(
     val id: String,
     val score: Double,
-    val document: Map<String, JsonElement>
+    val document: T
 )

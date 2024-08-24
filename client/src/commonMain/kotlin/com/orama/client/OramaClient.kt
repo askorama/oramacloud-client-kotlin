@@ -7,11 +7,12 @@ import com.orama.endpoint.Search
 import com.orama.model.search.SearchParams
 import com.orama.model.search.SearchResponse
 import io.ktor.client.*
+import kotlinx.serialization.KSerializer
 
 class OramaClient(var apiKey: String, var endpoint: String) {
     private val httpClient = HttpClient()
 
-    suspend fun search(searchParams: SearchParams): SearchResponse {
-        return Search.get(this@OramaClient, httpClient, searchParams)
+    suspend fun <T> search(searchParams: SearchParams, serializer: KSerializer<T>): SearchResponse<T> {
+        return Search.get(this@OramaClient, httpClient, searchParams, serializer)
     }
 }

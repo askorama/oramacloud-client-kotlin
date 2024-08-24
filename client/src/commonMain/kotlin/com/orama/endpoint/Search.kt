@@ -10,6 +10,7 @@ import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 
 sealed class Search {
@@ -18,11 +19,12 @@ sealed class Search {
             ignoreUnknownKeys = true
         }
 
-        suspend fun get(
+        suspend fun <T> get(
             oramaClient: OramaClient,
             httpClient: HttpClient,
-            searchParams: SearchParams
-        ): SearchResponse {
+            searchParams: SearchParams,
+            serializer: KSerializer<T>
+        ): SearchResponse<T> {
             try {
                 val response: HttpResponse = httpClient.submitForm(
                     url = "${oramaClient.endpoint}/search",
@@ -39,7 +41,8 @@ sealed class Search {
 
                 val responseBody = response.bodyAsText()
                 if (response.status.isSuccess()) {
-                    return jsonDeserializer.decodeFromString<SearchResponse>(responseBody)
+                    // Witin SesarchResponse the "hit" property should be serialized with the given serializer.
+                    return jsonDeserializer.decodeFromString(SearchResponse.serializer(serializer), responseBody)
                 } else {
                     throw OramaException(
                         "Error while parsing response: ${response.status.description}"
