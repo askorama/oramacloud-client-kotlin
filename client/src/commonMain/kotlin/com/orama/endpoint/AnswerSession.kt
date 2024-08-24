@@ -21,14 +21,14 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.contextual
 
-class AnswerSession(
-    private val answerParams: AnswerParams,
-    private val events: AnswerEventListener? = null,
+class AnswerSession<T>(
+    private val answerParams: AnswerParams<T>,
+    private val events: AnswerEventListener<T>? = null,
     private val client: HttpClient = createHttpClient(),
     internal var abortHandler: AbortHandler? = null,
     private val conversationId: String = UUIDUtils.generate()
 ) : Closeable {
-    private val state: MutableList<Interaction> = mutableListOf()
+    private val state: MutableList<Interaction<T>> = mutableListOf()
     private val json = Json {
         ignoreUnknownKeys = true
         serializersModule = SerializersModule {
@@ -48,14 +48,14 @@ class AnswerSession(
         close()
     }
 
-    private fun handleServerSentEvent(event: ServerSentEvent, eventResult: EventResult): EventResult {
+    private fun handleServerSentEvent(event: ServerSentEvent, eventResult: EventResult<T>): EventResult<T> {
         val chunkData = event.data?.let {
             json.decodeFromString(DataChunkSerializer, it)
         }
 
         chunkData?.let {
             when (chunkData.type) {
-                EventType.SOURCES -> handleSources(chunkData.message as SourcesList) {
+                EventType.SOURCES -> handleSources(chunkData.message as SourcesList<T>) {
                     eventResult.sources = it
                 }
                 EventType.QUERY_TRANSLATED -> handleQueryTranslated(chunkData.message as TranslatedQuery) {
@@ -70,7 +70,7 @@ class AnswerSession(
         return eventResult
     }
 
-    private fun handleSources(sourcesData: SourcesList, onFinished: (List<Hit>) -> Unit) {
+    private fun handleSources(sourcesData: SourcesList<T>, onFinished: (List<Hit<T>>) -> Unit) {
         events?.onSourceChanged(sourcesData.content)
         onFinished(sourcesData.content)
     }
@@ -85,7 +85,7 @@ class AnswerSession(
         onFinished(messageContent.content)
     }
 
-    private fun emptyEventResult(): EventResult {
+    private fun <T> emptyEventResult(): EventResult<T> {
         return EventResult(
             message = "",
             sources = emptyList(),
@@ -93,7 +93,7 @@ class AnswerSession(
         )
     }
 
-    suspend fun ask(params: AskParams)  {
+    suspend fun ask(params: AskParams<T>)  {
         try {
             events?.onMessageLoading(true)
 
@@ -110,7 +110,7 @@ class AnswerSession(
                 setBody(body)
                 contentType(ContentType.Application.FormUrlEncoded)
             }) {
-                var eventResult = emptyEventResult()
+                var eventResult = emptyEventResult<T>()
 
                 incoming.collect { item ->
                     eventResult = handleServerSentEvent(item, eventResult)
@@ -148,7 +148,7 @@ class AnswerSession(
     private fun updateState(
         question: String,
         message: String,
-        sources: List<Hit>,
+        sources: List<Hit<T>>,
         translatedQuery: Map<String, JsonElement>
     ) {
         val interaction = Interaction(

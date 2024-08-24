@@ -22,7 +22,7 @@ data class TranslatedQuery(val content: Map<String, JsonElement>) : MessageConte
 
 @Serializable
 @SerialName("SourcesList")
-data class SourcesList(val content: List<Hit>) : MessageContent()
+data class SourcesList<T>(val content: List<Hit<T>>) : MessageContent()
 
 @Serializable
 data class DataChunk(
@@ -44,7 +44,11 @@ object DataChunkSerializer : KSerializer<DataChunk> {
             when (val message = value.message) {
                 is StringMessage -> encodeStringElement(descriptor, 1, message.content)
                 is TranslatedQuery -> encodeSerializableElement(descriptor, 1, MapSerializer(String.serializer(), JsonElement.serializer()), message.content)
-                is SourcesList -> encodeSerializableElement(descriptor, 1, ListSerializer(Hit.serializer()), message.content)
+                is SourcesList<*> -> {
+                    val hitSerializer = Hit.serializer(PolymorphicSerializer(Any::class))
+                    @Suppress("UNCHECKED_CAST")
+                    encodeSerializableElement(descriptor, 1, ListSerializer(hitSerializer), message.content as List<Hit<Any>>)
+                }
             }
             encodeStringElement(descriptor, 2, value.interactionId)
         }
@@ -63,7 +67,10 @@ object DataChunkSerializer : KSerializer<DataChunk> {
                     1 -> message = when (type) {
                         EventType.TEXT -> StringMessage(decodeStringElement(descriptor, index))
                         EventType.QUERY_TRANSLATED -> TranslatedQuery(decodeSerializableElement(descriptor, index, MapSerializer(String.serializer(), JsonElement.serializer())))
-                        EventType.SOURCES -> SourcesList(decodeSerializableElement(descriptor, index, ListSerializer(Hit.serializer())))
+                        EventType.SOURCES -> {
+                            val hitSerializer = Hit.serializer(PolymorphicSerializer(Any::class))
+                            SourcesList(decodeSerializableElement(descriptor, index, ListSerializer(hitSerializer)))
+                        }
                         null -> throw SerializationException("Unknown type")
                     }
                     2 -> interactionId = decodeStringElement(descriptor, index)
