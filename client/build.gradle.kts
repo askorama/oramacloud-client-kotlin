@@ -4,7 +4,6 @@ val GROUP: String by project
 val VERSION_NAME: String by project
 
 version = VERSION_NAME
-println("Project version is set to: ${version}")
 
 plugins {
     kotlin("multiplatform") version "1.9.0"

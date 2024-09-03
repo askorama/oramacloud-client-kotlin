@@ -43,6 +43,25 @@ class AnswerSession<T>(
         }
     }
 
+    fun getState(): MutableList<Interaction<T>> = this.state
+    fun getMessages(): List<Message> {
+        val messages = mutableListOf<Message>()
+
+        for (interaction in state) {
+            messages.add(Message(
+                role = Role.USER,
+                content = interaction.query
+            ))
+
+            messages.add(Message(
+                role = Role.ASSISTANT,
+                content = interaction.response
+            ))
+        }
+
+        return messages
+    }
+
     private fun handleAbort() {
         events?.onAnswerAborted(true)
         close()
@@ -91,6 +110,19 @@ class AnswerSession<T>(
             sources = emptyList(),
             queryTranslated = emptyMap()
         )
+    }
+
+    /**
+     * This function is just to allow better readability.
+     *
+     * For our Kotlin SDK streaming is always available.
+     * Developers can device to use it or not by subscribing
+     * to the AnswerEventListener.onMessageChange event.
+     *
+     * Alias for: ask(params: AskParams)
+     */
+    suspend fun askStream(params: AskParams) {
+        return this.ask(params)
     }
 
     suspend fun ask(params: AskParams)  {
@@ -185,24 +217,6 @@ class AnswerSession<T>(
                 messages = messages.dropLast(1)
             )
         )
-    }
-
-    fun getMessages(): List<Message> {
-        val messages = mutableListOf<Message>()
-
-        for (interaction in state) {
-            messages.add(Message(
-                role = Role.USER,
-                content = interaction.query
-            ))
-
-            messages.add(Message(
-                role = Role.ASSISTANT,
-                content = interaction.response
-            ))
-        }
-
-        return messages
     }
 
     override fun close() {

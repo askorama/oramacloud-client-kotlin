@@ -27,27 +27,27 @@ After that, use the `SearchParams` to prepare you query.
 Now, just call the `client.search` method with the parameters and a proper callback handler.
 
 ```kotlin
+@Serializable
+data class MyDoc (
+    val title: String,
+    val category: String,
+    val path: String,
+    val content: String,
+    val section: String
+)
+
 val client = OramaClient(
     endpoint = "<ORAMA CLOUD URL>",
     apiKey = "<ORAMA CLOUD API KEY>"
 )
 
-launch {
-    client.search(
-        SearchParams.builder(
-            term = "install",
-            mode = Mode.FULLTEXT // Modes: FULLTEXT, VECTOR and HYBRID
-        ).build(),
-        object : SearchEventListener {
-            override fun onComplete(results: SearchResponse) {
-                // Do something with results 
-            }
+val searchParams = SearchParams.builder(
+        term = "install",
+        mode = Mode.FULLTEXT // Modes: FULLTEXT, VECTOR and HYBRID
+    ).build()
 
-            override fun onError(error: String) {
-                // Handle error
-            }
-        }
-    )
+launch {
+    val results = client.search(searchParams, MyDoc.serializer())
 }
 ```
 
@@ -85,11 +85,6 @@ runBlocking {
     ))
 }
 ```
-
-## Todo
-
-- [ ] Include Tests & commonTest subset
-- [ ] Search results: replace generic maps for proper serializable types
 
 ## License
 

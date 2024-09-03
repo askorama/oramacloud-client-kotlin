@@ -31,7 +31,7 @@ class SearchParams private constructor (
         private var properties: List<String>? = null
 
         fun properties(properties: List<String>?) = apply { this.properties = properties }
-        fun sortBy(sortBy: Map<String, String>) = apply { this.sortBy = sortBy }
+        fun sortBy(sortBy: Map<String, String>) = apply { this. sortBy= sortBy }
         fun facets(facets: Map<String, Facet>) = apply { this.facets = facets }
         fun limit(limit: Int) = apply { this.limit = limit }
         fun offset(offset: Int) = apply { this.offset = offset }
