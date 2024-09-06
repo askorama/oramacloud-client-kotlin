@@ -39,7 +39,7 @@ class IndexManager<T : Any>(
             val delete = json.decodeFromString<UpsertResponse>(httpResponse.bodyAsText())
             return delete.success
         } catch (e: Exception) {
-            throw e;
+            throw e
         }
     }
 
@@ -51,7 +51,7 @@ class IndexManager<T : Any>(
             val upsert = json.decodeFromString<UpsertResponse>(httpResponse.bodyAsText())
             return upsert.success
         }  catch (e: Exception) {
-            throw e;
+            throw e
         }
     }
 
@@ -70,7 +70,7 @@ class IndexManager<T : Any>(
             val delete = json.decodeFromString<UpsertResponse>(httpResponse.bodyAsText())
             return delete.success
         } catch (e: Exception) {
-            throw e;
+            throw e
         }
     }
 
@@ -80,7 +80,7 @@ class IndexManager<T : Any>(
             val deploy = json.decodeFromString<DeployResponse>(httpResponse.bodyAsText())
             return deploy.deploymentId
         } catch (e: Exception) {
-            throw e;
+            throw e
         }
     }
 
@@ -90,7 +90,7 @@ class IndexManager<T : Any>(
             val clear = json.decodeFromString<UpsertResponse>(httpResponse.bodyAsText())
             return clear.success
         } catch (e: Exception) {
-            throw e;
+            throw e
         }
     }
 
@@ -100,7 +100,7 @@ class IndexManager<T : Any>(
             val checkOperation = json.decodeFromString<HasPendingOperations>(httpResponse.bodyAsText())
             return checkOperation.hasData
         } catch (e: Exception) {
-            throw e;
+            throw e
         }
     }
 }
