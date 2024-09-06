@@ -1,24 +1,13 @@
 package com.orama.endpoint
 
-import com.orama.listeners.IndexManagerEventListener
+import com.orama.model.index.*
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.builtins.ListSerializer
-
-@Serializable
-data class UpsertRequest<T> (
-    val upsert: List<T>
-)
-
-@Serializable
-data class DeleteRequest (
-    val delete: List<String>
-)
 
 enum class IndexMethod(val value: String) {
     SNAPSHOT("snapshot"),
@@ -38,79 +27,80 @@ class Transport(private val client: HttpClient, private val index: String) {
 
 class IndexManager<T : Any>(
     client: HttpClient,
-    index: String,
-    private val events: IndexManagerEventListener?
+    index: String
 ) {
     private val json = Json { prettyPrint = true }
     private val transport = Transport(client, index)
 
-    suspend fun snapshot(documents: List<T>, serializer: KSerializer<T>) = handleException(
-        onSuccess = { events?.onSnapshotSuccess() },
-        onError = { error -> events?.onSnapshotError(error) }
-    ) {
-        val snapshotData = json.encodeToString(ListSerializer(serializer), documents)
-        transport.post(IndexMethod.SNAPSHOT, snapshotData)
-    }
-
-    private suspend fun insertOrUpdate(documents: List<T>, serializer: KSerializer<T>) {
-        val upsertData = UpsertRequest(documents)
-        val snapshotData = json.encodeToString(UpsertRequest.serializer(serializer), upsertData)
-        transport.post(IndexMethod.NOTIFY, snapshotData)
-    }
-
-    suspend fun insert(documents: List<T>, serializer: KSerializer<T>) = handleException(
-        onSuccess = { events?.onInsertSuccess() },
-        onError = { e -> events?.onInsertError(e) }
-    ) {
-        insertOrUpdate(documents, serializer)
-    }
-
-     suspend fun update(documents: List<T>, serializer: KSerializer<T>) = handleException(
-        onSuccess = { events?.onUpdateSuccess() },
-        onError = { e -> events?.onUpdateError(e) }
-    ) {
-        insertOrUpdate(documents, serializer)
-    }
-
-    suspend fun delete(ids: List<String>) = handleException(
-        onSuccess = { events?.onDeleteSuccess() },
-        onError = { e -> events?.onDeleteError(e) }
-    ) {
-        val deleteData = json.encodeToString(DeleteRequest.serializer(), DeleteRequest(ids))
-        transport.post(IndexMethod.NOTIFY, deleteData)
-    }
-
-    suspend fun deploy() = handleException(
-        onSuccess = { events?.onDeploySuccess() },
-        onError = { e -> events?.onDeployError(e) }
-    ) {
-        transport.post(IndexMethod.DEPLOY)
-    }
-
-    suspend fun clear() = handleException(
-        onSuccess = { events?.onClearSuccess() },
-        onError = { e -> events?.onClearError(e) }
-    ) {
-        transport.post(IndexMethod.SNAPSHOT, emptyList<T>())
-    }
-
-    suspend fun hasPendingOperations() = handleException(
-        onSuccess = { events?.onCheckPendingSuccess(true) },
-        onError = { e -> events?.onCheckPendingSuccess(false) }
-    ) {
-        transport.post(IndexMethod.HAS_DATA)
-    }
-
-    private suspend fun handleException(
-        onSuccess: () -> Unit,
-        onError: (Exception) -> Unit,
-        block: suspend () -> Unit
-    ) {
+    suspend fun snapshot(documents: List<T>, serializer: KSerializer<T>): Boolean {
         try {
-            block()
-            onSuccess()
-        } catch (error: Exception) {
-            onError(error)
+            val snapshotData = json.encodeToString(ListSerializer(serializer), documents)
+            val httpResponse = transport.post(IndexMethod.SNAPSHOT, snapshotData)
+            val delete = json.decodeFromString<UpsertResponse>(httpResponse.bodyAsText())
+            return delete.success
+        } catch (e: Exception) {
+            throw e;
+        }
+    }
+
+    private suspend fun insertOrUpdate(documents: List<T>, serializer: KSerializer<T>): Boolean {
+        try {
+            val upsertData = UpsertRequest(documents)
+            val snapshotData = json.encodeToString(UpsertRequest.serializer(serializer), upsertData)
+            val httpResponse = transport.post(IndexMethod.NOTIFY, snapshotData)
+            val upsert = json.decodeFromString<UpsertResponse>(httpResponse.bodyAsText())
+            return upsert.success
+        }  catch (e: Exception) {
+            throw e;
+        }
+    }
+
+    suspend fun insert(documents: List<T>, serializer: KSerializer<T>): Boolean {
+        return this.insertOrUpdate(documents, serializer)
+    }
+
+    suspend fun update(documents: List<T>, serializer: KSerializer<T>): Boolean {
+         return this.insertOrUpdate(documents, serializer)
+    }
+
+    suspend fun delete(ids: List<String>): Boolean {
+        try {
+            val deleteData = json.encodeToString(DeleteRequest.serializer(), DeleteRequest(ids))
+            val httpResponse = transport.post(IndexMethod.NOTIFY, deleteData)
+            val delete = json.decodeFromString<UpsertResponse>(httpResponse.bodyAsText())
+            return delete.success
+        } catch (e: Exception) {
+            throw e;
+        }
+    }
+
+    suspend fun deploy(): String {
+        try {
+            val httpResponse = transport.post(IndexMethod.DEPLOY)
+            val deploy = json.decodeFromString<DeployResponse>(httpResponse.bodyAsText())
+            return deploy.deploymentId
+        } catch (e: Exception) {
+            throw e;
+        }
+    }
+
+    suspend fun clear(): Boolean {
+        try {
+            val httpResponse = transport.post(IndexMethod.SNAPSHOT, "[]")
+            val clear = json.decodeFromString<UpsertResponse>(httpResponse.bodyAsText())
+            return clear.success
+        } catch (e: Exception) {
+            throw e;
+        }
+    }
+
+    suspend fun hasPendingOperations(): Boolean {
+        try {
+            val httpResponse = transport.post(IndexMethod.HAS_DATA)
+            val checkOperation = json.decodeFromString<HasPendingOperations>(httpResponse.bodyAsText())
+            return checkOperation.hasData
+        } catch (e: Exception) {
+            throw e;
         }
     }
 }
