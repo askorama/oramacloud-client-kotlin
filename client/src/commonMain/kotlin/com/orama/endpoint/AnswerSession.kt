@@ -14,6 +14,12 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.sse.*
 import io.ktor.utils.io.core.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
@@ -60,7 +66,7 @@ class AnswerSession<T>(
         close()
     }
 
-    private fun handleServerSentEvent(event: ServerSentEvent, sseSerializer: SSESerializer<T>) {
+    private fun handleServerSentEvent(event: ServerSentEvent, sseSerializer: SSESerializer<T>): SSEEvent<T> {
 
         val chunkData = sseSerializer.process(event)
         val currentState = sseSerializer.getState()
@@ -72,6 +78,8 @@ class AnswerSession<T>(
                 else -> handleMessageContent(currentState.message)
             }
         }
+
+        return chunkData
     }
 
     private fun handleSources(sourcesData: List<Hit<T>>) {
@@ -94,21 +102,7 @@ class AnswerSession<T>(
         )
     }
 
-    /**
-     * This function is just to allow better readability.
-     *
-     * For our Kotlin SDK streaming is always available.
-     * Developers can device to use it or not by subscribing
-     * to the AnswerEventListener.onMessageChange event.
-     *
-     * Alias for: ask(params: AskParams)
-     */
-    suspend fun askStream(params: AskParams) {
-        this.ask(params)
-        return
-    }
-
-    suspend fun ask(params: AskParams) : String {
+    private suspend fun processAnswer(params: AskParams, onSSEEvent: ((event: String) -> Unit)? = null): String {
         var eventResult = emptyEventResult<T>()
 
         try {
@@ -130,8 +124,13 @@ class AnswerSession<T>(
 
                 val serializerClass = SSESerializer(sourcesSerializer = answerParams.serializer)
 
+
                 incoming.collect { item ->
-                    handleServerSentEvent(item, serializerClass)
+                    val sseEvent = handleServerSentEvent(item, serializerClass)
+
+                    if(sseEvent.type == EventType.TEXT) {
+                        onSSEEvent?.invoke((sseEvent.message as StringMessage).content)
+                    }
                 }
 
                 eventResult = serializerClass.getState()
@@ -145,6 +144,22 @@ class AnswerSession<T>(
             return eventResult.message
         }
     }
+
+    suspend fun ask(params: AskParams) : String {
+        return this.processAnswer(params)
+    }
+
+    suspend fun askStream(params: AskParams, coroutineScope: CoroutineScope): Flow<String> = callbackFlow {
+        this@AnswerSession.processAnswer(params) { sseEvent: String ->
+            coroutineScope.launch {
+                send(sseEvent)
+            }
+        }
+
+        close()
+        awaitClose {}
+    }
+
 
     private fun buildRequestBody(question: String, messages: List<Message>?, searchParams: Map<String, String>): String {
 

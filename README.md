@@ -72,17 +72,15 @@ val answerSession = AnswerSession(
         override fun onStateChange(interactions: MutableList<Interaction>) {
             // Process list of interaction post-response
         }
-
-        override fun onMessageChange(data: String) {
-            // Process the incoming streaming 
-        }
     }
 )
 
 runBlocking {
-    answerSession.ask(AskParams(
+    val answer = answerSession.ask(AskParams(
         query = "What's the best movie to watch with the family?"
     ))
+
+    println(answer)
 }
 ```
 
