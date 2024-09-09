@@ -30,3 +30,6 @@ coverage-error.log
 
 # Java
 *.hprof
+
+# Fleet
+.fleet
