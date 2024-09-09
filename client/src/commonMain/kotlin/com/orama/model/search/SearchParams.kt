@@ -47,7 +47,6 @@ class SearchParams private constructor (
     }
 
     fun toJson(): String {
-        println(Json.encodeToString(this))
         return Json.encodeToString(this)
     }
 }

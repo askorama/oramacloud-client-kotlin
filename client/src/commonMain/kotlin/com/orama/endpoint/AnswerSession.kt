@@ -155,8 +155,6 @@ class AnswerSession<T>(
 
         val encodedSearchParams = Json.encodeToString(MapSerializer(String.serializer(), String.serializer()), searchParams)
 
-        println(encodedMessages)
-
         return parameters {
             append("query", question)
             append("conversationId", conversationId)
