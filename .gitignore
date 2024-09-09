@@ -5,7 +5,7 @@ build
 local.properties
 reports
 .kotlin
-.bashrc
+.secrets.mavencentral
 
 # IntelliJ IDEA
 .idea

@@ -34,7 +34,7 @@ data class DataChunk(
 object DataChunkSerializer : KSerializer<DataChunk> {
     override val descriptor: SerialDescriptor = buildClassSerialDescriptor("DataChunk") {
         element("type", EventType.serializer().descriptor)
-        element("message", buildClassSerialDescriptor("MessageContent"))
+//        element("message", buildClassSerialDescriptor("MessageContent"))
         element("interactionId", PrimitiveSerialDescriptor("interactionId", PrimitiveKind.STRING))
     }
 
@@ -68,8 +68,12 @@ object DataChunkSerializer : KSerializer<DataChunk> {
                         EventType.TEXT -> StringMessage(decodeStringElement(descriptor, index))
                         EventType.QUERY_TRANSLATED -> TranslatedQuery(decodeSerializableElement(descriptor, index, MapSerializer(String.serializer(), JsonElement.serializer())))
                         EventType.SOURCES -> {
-                            val hitSerializer = Hit.serializer(PolymorphicSerializer(Any::class))
-                            SourcesList(decodeSerializableElement(descriptor, index, ListSerializer(hitSerializer)))
+                            println(type)
+//                            val hitSerializer = Hit.serializer(PolymorphicSerializer(Any::class))
+//                            SourcesList(decodeSerializableElement(descriptor, index, ListSerializer(hitSerializer)))
+
+                            println(decodeStringElement(descriptor, index))
+                            StringMessage(decodeStringElement(descriptor, index))
                         }
                         null -> throw SerializationException("Unknown type")
                     }

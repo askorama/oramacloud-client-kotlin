@@ -1,22 +1,29 @@
 package com.orama.endpoint
 
 import com.orama.client.OramaClient
-import com.orama.listeners.SearchEventListener
 import com.orama.model.search.Mode
 import com.orama.model.search.SearchParams
-import com.orama.model.search.SearchResponse
 import io.ktor.client.*
 import io.ktor.client.engine.mock.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonPrimitive
 import kotlin.test.assertEquals
 import kotlin.test.Test
 
 class TestSearch {
+    @Serializable
+    data class MyDoc (
+        val title: String,
+        val category: String,
+        val path: String,
+        val content: String,
+        val section: String
+    )
+
     private val exampleSearchResponse = """{
         "count": 1,
         "elapsed": {"raw": 0, "formatted": "0ms"},
@@ -72,26 +79,22 @@ class TestSearch {
             endpoint = "https://oramacloud.com/some-endpoint"
         )
 
-        Search.get(
+        val results = Search.get(
             oramaClient,
             mockHttpClient,
             exampleSearchParams(),
-            events = object : SearchEventListener {
-                override fun onError(error: String) {
-                    // Handle error
-                }
-
-                override fun onComplete(results: SearchResponse) {
-                    val hit = results.hits[0]
-                    assertEquals(5.787301233651877, hit.score)
-                    assertEquals("233", hit.id)
-                    assertEquals("Cloud", (hit.document["category"] as? JsonPrimitive)?.content)
-                    assertEquals("/cloud/performing-search/official-sdk#javascript", (hit.document["path"] as? JsonPrimitive)?.content)
-                    assertEquals("Performing Search", (hit.document["section"] as? JsonPrimitive)?.content)
-                    assertEquals("JavaScript", (hit.document["title"] as? JsonPrimitive)?.content)
-                    assertEquals("You can install the JavaScript SDK via any major package manager. ", (hit.document["content"] as? JsonPrimitive)?.content)
-                }
-            }
+            MyDoc.serializer()
         )
+
+        val hit = results.hits[0]
+        assertEquals(5.787301233651877, hit.score)
+        assertEquals("233", hit.id)
+
+        val document = hit.document
+        assertEquals("Cloud", document.category)
+        assertEquals("/cloud/performing-search/official-sdk#javascript", document.path)
+        assertEquals("Performing Search", document.section)
+        assertEquals("JavaScript", document.title)
+        assertEquals("You can install the JavaScript SDK via any major package manager. ", document.content)
     }
 }

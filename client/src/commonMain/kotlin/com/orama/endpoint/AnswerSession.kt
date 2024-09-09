@@ -1,5 +1,6 @@
 package com.orama.endpoint
 
+import com.orama.endpoint.internal.SSESerializer
 import com.orama.listeners.AnswerEventListener
 import com.orama.listeners.AbortHandler
 import com.orama.model.answer.*
@@ -18,8 +19,6 @@ import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.contextual
 
 class AnswerSession<T>(
     private val answerParams: AnswerParams<T>,
@@ -29,12 +28,6 @@ class AnswerSession<T>(
     private val conversationId: String = UUIDUtils.generate()
 ) : Closeable {
     private val state: MutableList<Interaction<T>> = mutableListOf()
-    private val json = Json {
-        ignoreUnknownKeys = true
-        serializersModule = SerializersModule {
-            contextual(DataChunkSerializer)
-        }
-    }
 
     init {
         abortHandler?.setInterruptCallback {
@@ -67,41 +60,30 @@ class AnswerSession<T>(
         close()
     }
 
-    private fun handleServerSentEvent(event: ServerSentEvent, eventResult: EventResult<T>): EventResult<T> {
-        val chunkData = event.data?.let {
-            json.decodeFromString(DataChunkSerializer, it)
-        }
+    private fun handleServerSentEvent(event: ServerSentEvent, sseSerializer: SSESerializer<T>) {
 
-        chunkData?.let {
+        val chunkData = sseSerializer.process(event)
+        val currentState = sseSerializer.getState()
+
+        chunkData.let {
             when (chunkData.type) {
-                EventType.SOURCES -> handleSources(chunkData.message as SourcesList<T>) {
-                    eventResult.sources = it
-                }
-                EventType.QUERY_TRANSLATED -> handleQueryTranslated(chunkData.message as TranslatedQuery) {
-                    eventResult.queryTranslated = it
-                }
-                else -> handleMessageContent(chunkData.message as StringMessage) {
-                    eventResult.message += it
-                }
+                EventType.SOURCES -> handleSources(currentState.sources)
+                EventType.QUERY_TRANSLATED -> handleQueryTranslated(currentState.queryTranslated)
+                else -> handleMessageContent(currentState.message)
             }
         }
-
-        return eventResult
     }
 
-    private fun handleSources(sourcesData: SourcesList<T>, onFinished: (List<Hit<T>>) -> Unit) {
-        events?.onSourceChanged(sourcesData.content)
-        onFinished(sourcesData.content)
+    private fun handleSources(sourcesData: List<Hit<T>>) {
+        events?.onSourceChanged(sourcesData)
     }
 
-    private fun handleQueryTranslated(queryTranslated: TranslatedQuery, onFinished: (Map<String, JsonElement>) -> Unit) {
-        events?.onQueryTranslated(queryTranslated.content)
-        onFinished(queryTranslated.content)
+    private fun handleQueryTranslated(queryTranslated: Map<String, JsonElement>) {
+        events?.onQueryTranslated(queryTranslated)
     }
 
-    private fun handleMessageContent(messageContent: StringMessage, onFinished: (String) -> Unit) {
-        events?.onMessageChange(messageContent.content)
-        onFinished(messageContent.content)
+    private fun handleMessageContent(messageContent: String) {
+        events?.onMessageChange(messageContent)
     }
 
     private fun <T> emptyEventResult(): EventResult<T> {
@@ -122,10 +104,13 @@ class AnswerSession<T>(
      * Alias for: ask(params: AskParams)
      */
     suspend fun askStream(params: AskParams) {
-        return this.ask(params)
+        this.ask(params)
+        return
     }
 
-    suspend fun ask(params: AskParams)  {
+    suspend fun ask(params: AskParams) : String {
+        var eventResult = emptyEventResult<T>()
+
         try {
             events?.onMessageLoading(true)
 
@@ -142,17 +127,22 @@ class AnswerSession<T>(
                 setBody(body)
                 contentType(ContentType.Application.FormUrlEncoded)
             }) {
-                var eventResult = emptyEventResult<T>()
+
+                val serializerClass = SSESerializer(sourcesSerializer = answerParams.serializer)
 
                 incoming.collect { item ->
-                    eventResult = handleServerSentEvent(item, eventResult)
+                    handleServerSentEvent(item, serializerClass)
                 }
+
+                eventResult = serializerClass.getState()
 
                 updateState(params.query, eventResult.message,  eventResult.sources, eventResult.queryTranslated)
                 events?.onStateChange(state)
             }
         } finally {
             events?.onMessageLoading(false)
+
+            return eventResult.message
         }
     }
 
@@ -160,10 +150,10 @@ class AnswerSession<T>(
 
         var encodedMessages = "[]"
         messages?.let {
-            encodedMessages = json.encodeToString(ListSerializer(Message.serializer()), it)
+            encodedMessages = Json.encodeToString(ListSerializer(Message.serializer()), it)
         }
 
-        val encodedSearchParams = json.encodeToString(MapSerializer(String.serializer(), String.serializer()), searchParams)
+        val encodedSearchParams = Json.encodeToString(MapSerializer(String.serializer(), String.serializer()), searchParams)
 
         println(encodedMessages)
 
@@ -217,6 +207,10 @@ class AnswerSession<T>(
                 messages = messages.dropLast(1)
             )
         )
+    }
+
+    fun clearSession() {
+        this.state.clear()
     }
 
     override fun close() {
